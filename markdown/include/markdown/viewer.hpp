@@ -33,6 +33,15 @@ public:
     Viewer& operator=(Viewer&&) = delete;
 
     void set_content(std::string_view markdown_text);
+
+    /// Install a pre-parsed AST (produced off-thread by a standalone
+    /// MarkdownParser). The next render skips the internal parse step —
+    /// saves the main thread the cmark-gfm cost on large bodies. The
+    /// built Element is still generated lazily inside component()'s
+    /// Renderer, so theme/focus changes still re-use the cached AST.
+    ///
+    /// Call on the owning (render) thread only.
+    void set_ast(MarkdownAST ast);
     void set_scroll(float ratio);
     void show_scrollbar(bool show);
     void on_link_click(

@@ -19,6 +19,22 @@ void Viewer::set_content(std::string_view markdown_text) {
     ++_content_gen;
 }
 
+void Viewer::set_ast(MarkdownAST ast) {
+    _cached_ast = std::move(ast);
+    // Bump _content_gen and align _parsed_gen with it so the next frame's
+    // cache check in component() sees "already parsed" and skips the
+    // internal _parser->parse() call. Downstream generations (_built_gen /
+    // _last_focused_link / _built_theme_gen / _built_builder_gen) fall out
+    // of sync vs. _parsed_gen — the Renderer reacts and rebuilds the
+    // Element tree, which is the desired behavior.
+    ++_content_gen;
+    _parsed_gen = _content_gen;
+    // Clear the stored text — it's no longer authoritative, and an AST the
+    // caller owns can diverge from _content. A subsequent set_content()
+    // call will set everything fresh.
+    _content.clear();
+}
+
 void Viewer::set_scroll(float ratio) {
     _scroll_ratio = ratio;
 }

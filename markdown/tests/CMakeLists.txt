@@ -74,6 +74,10 @@ add_executable(test_viewer test_viewer.cpp)
 target_link_libraries(test_viewer PRIVATE markdown-ui)
 add_test(NAME test_viewer COMMAND test_viewer)
 
+add_executable(test_set_ast test_set_ast.cpp)
+target_link_libraries(test_set_ast PRIVATE markdown-ui)
+add_test(NAME test_set_ast COMMAND test_set_ast)
+
 add_executable(test_theme test_theme.cpp)
 target_link_libraries(test_theme PRIVATE markdown-ui)
 add_test(NAME test_theme COMMAND test_theme)
