@@ -10,14 +10,20 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(FetchContent)
+include(ExternalProject)
 
 # --- FTXUI ---
-FetchContent_Declare(
-    ftxui
-    GIT_REPOSITORY https://github.com/ArthurSonzogni/FTXUI.git
-    GIT_TAG        v6.1.9
-    GIT_SHALLOW    TRUE
-)
+# Provided externally via the agentxx build system
+# find_package(ftxui QUIET)
+# if (NOT ftxui_FOUND)
+#     FetchContent_Declare(
+#         ftxui
+#         GIT_REPOSITORY https://github.com/ArthurSonzogni/FTXUI.git
+#         GIT_TAG        v6.1.9
+#         GIT_SHALLOW    TRUE
+#     )
+#     FetchContent_MakeAvailable(ftxui)
+# endif()
 
 # --- cmark-gfm ---
 FetchContent_Declare(
@@ -26,13 +32,10 @@ FetchContent_Declare(
     GIT_TAG        0.29.0.gfm.13
     GIT_SHALLOW    TRUE
 )
-
-# Disable cmark-gfm tests and shared libs
 set(CMARK_TESTS OFF CACHE BOOL "" FORCE)
 set(CMARK_SHARED OFF CACHE BOOL "" FORCE)
 set(CMARK_STATIC ON CACHE BOOL "" FORCE)
-
-FetchContent_MakeAvailable(ftxui cmark-gfm)
+FetchContent_MakeAvailable(cmark-gfm)
 
 option(MARKDOWN_UI_BUILD_TESTS "Build tests" ON)
 option(MARKDOWN_UI_BUILD_DEMO  "Build demo"  ON)

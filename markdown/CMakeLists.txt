@@ -11,19 +11,15 @@ target_include_directories(markdown-ui PUBLIC
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
-target_compile_definitions(markdown-ui PRIVATE CMARK_GFM_STATIC_DEFINE)
+target_compile_definitions(markdown-ui PUBLIC CMARK_GFM_STATIC_DEFINE)
 
-target_include_directories(markdown-ui PRIVATE
-    ${cmark-gfm_SOURCE_DIR}/src
-    ${cmark-gfm_BINARY_DIR}/src
-)
+find_package(ftxui REQUIRED)
 
 target_link_libraries(markdown-ui
     PUBLIC
         ftxui::screen
         ftxui::dom
         ftxui::component
-    PRIVATE
         libcmark-gfm_static
         libcmark-gfm-extensions_static
 )
