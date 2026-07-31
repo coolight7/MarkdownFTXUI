@@ -20,8 +20,8 @@ target_link_libraries(markdown-ui
         ftxui::screen
         ftxui::dom
         ftxui::component
-        libcmark-gfm_static
-        libcmark-gfm-extensions_static
+        cmark-gfm
+        cmark-gfm-extensions
 )
 
 # --- Install targets ---

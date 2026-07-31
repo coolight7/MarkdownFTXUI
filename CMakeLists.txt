@@ -26,16 +26,16 @@ include(ExternalProject)
 # endif()
 
 # --- cmark-gfm ---
-FetchContent_Declare(
-    cmark-gfm
-    GIT_REPOSITORY https://github.com/github/cmark-gfm.git
-    GIT_TAG        0.29.0.gfm.13
-    GIT_SHALLOW    TRUE
-)
-set(CMARK_TESTS OFF CACHE BOOL "" FORCE)
-set(CMARK_SHARED OFF CACHE BOOL "" FORCE)
-set(CMARK_STATIC ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(cmark-gfm)
+# FetchContent_Declare(
+#     cmark-gfm
+#     GIT_REPOSITORY https://github.com/github/cmark-gfm.git
+#     GIT_TAG        0.29.0.gfm.13
+#     GIT_SHALLOW    TRUE
+# )
+# set(CMARK_TESTS OFF CACHE BOOL "" FORCE)
+# set(CMARK_SHARED OFF CACHE BOOL "" FORCE)
+# set(CMARK_STATIC ON CACHE BOOL "" FORCE)
+# FetchContent_MakeAvailable(cmark-gfm)
 
 option(MARKDOWN_UI_BUILD_TESTS "Build tests" ON)
 option(MARKDOWN_UI_BUILD_DEMO  "Build demo"  ON)
