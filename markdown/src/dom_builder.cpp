@@ -408,6 +408,117 @@ ftxui::Element build_image(ASTNode const& node, int depth, int qd, int mqd,
     });
 }
 
+// 收集单元格纯文本用于宽度测量: 换行折叠为空格, 宽度按终端显示列计算。
+std::string cell_plain_text(ASTNode const& cell) {
+    std::string plain = collect_text(cell);
+    for (char& c : plain) {
+        if (c == '\n') c = ' ';
+    }
+    return plain;
+}
+
+// 渲染 GFM 表格: 用 box-drawing 字符绘制边框, 按列最大内容宽度对齐各列,
+// 支持左/中/右对齐 (来自分隔行的 ':' 位置) 与加粗表头。
+ftxui::Element build_table(ASTNode const& node, int depth, int qd, int mqd,
+                           Links& links, int focused_link,
+                           Theme const& theme) {
+    // 1. 逐行构建单元格元素, 同时统计每列最大内容宽度。
+    std::vector<std::vector<ftxui::Element>> rows;
+    std::vector<bool> row_is_header;
+    std::vector<int> col_widths;
+    for (auto const& row_node : node.children) {
+        if (row_node.type != NodeType::TableRow) continue;
+        std::vector<ftxui::Element> row;
+        size_t ci = 0;
+        for (auto const& cell : row_node.children) {
+            if (cell.type != NodeType::TableCell) continue;
+            auto el = build_inline_container(cell, depth, qd, mqd, links,
+                                             focused_link, theme);
+            int w = utf8_display_width(cell_plain_text(cell));
+            if (ci >= col_widths.size()) col_widths.resize(ci + 1, 0);
+            col_widths[ci] = std::max(col_widths[ci], w);
+            row.push_back(std::move(el));
+            ++ci;
+        }
+        rows.push_back(std::move(row));
+        row_is_header.push_back(row_node.is_header);
+    }
+    if (rows.empty()) {
+        // 空表或畸形 AST: 退化为空文本, 不渲染边框。
+        return ftxui::text("");
+    }
+
+    // 2. 列宽兜底: 空列/未统计列最小宽度 1。
+    size_t ncols = std::max<size_t>(node.columns, 1);
+    for (auto& w : col_widths) w = std::max(w, 1);
+    while (col_widths.size() < ncols) col_widths.push_back(1);
+    if (col_widths.empty()) col_widths.push_back(1);
+
+    // 3. 边框行: ┌─┬─┐ / ├─┼─┤ / └─┴─┘  (每列内容宽度 + 左右 1 空格内边距)
+    // 注: box-drawing 字符是多字节 UTF-8, 因此用 string_view 而非 char。
+    auto repeat = [](std::string_view sv, size_t n) {
+        std::string out;
+        out.reserve(sv.size() * n);
+        for (size_t i = 0; i < n; ++i) out += sv;
+        return out;
+    };
+    auto border_line = [&](std::string_view left, std::string_view mid,
+                           std::string_view right, std::string_view h) {
+        std::string s(left);
+        for (size_t c = 0; c < col_widths.size(); ++c) {
+            s += repeat(h, col_widths[c] + 2);
+            s += (c + 1 < col_widths.size()) ? mid : right;
+        }
+        return ftxui::text(std::move(s)) | theme.table_border;
+    };
+
+    // 4. 数据行: 单元格按列宽固定, 并按对齐方式放置内容。
+    auto render_row = [&](std::vector<ftxui::Element> const& row,
+                          bool is_header) {
+        ftxui::Elements parts;
+        parts.push_back(ftxui::text("\u2502") | theme.table_border);
+        for (size_t c = 0; c < col_widths.size(); ++c) {
+            ftxui::Element content
+                = (c < row.size()) ? row[c] : ftxui::text("");
+            char align = (c < node.alignments.size()) ? node.alignments[c] : 'l';
+            ftxui::Element aligned;
+            switch (align) {
+                case 'c':
+                    aligned = ftxui::hbox(
+                        {ftxui::filler(), std::move(content), ftxui::filler()});
+                    break;
+                case 'r':
+                    aligned = ftxui::hbox({ftxui::filler(), std::move(content)});
+                    break;
+                default: // 'l'
+                    aligned = ftxui::hbox({std::move(content), ftxui::filler()});
+                    break;
+            }
+            if (is_header) aligned = aligned | theme.table_header;
+            parts.push_back(ftxui::text(" "));
+            parts.push_back(
+                std::move(aligned)
+                | ftxui::size(ftxui::WIDTH, ftxui::EQUAL, col_widths[c]));
+            parts.push_back(ftxui::text(" "));
+            parts.push_back(ftxui::text("\u2502") | theme.table_border);
+        }
+        return ftxui::hbox(std::move(parts));
+    };
+
+    // 5. 组装: 上边框 + 各行 (行间分隔线) + 下边框。
+    ftxui::Elements lines;
+    lines.push_back(border_line("\u250C", "\u252C", "\u2510", "\u2500"));
+    for (size_t r = 0; r < rows.size(); ++r) {
+        lines.push_back(render_row(rows[r], row_is_header[r]));
+        if (r + 1 < rows.size()) {
+            lines.push_back(
+                border_line("\u251C", "\u253C", "\u2524", "\u2500"));
+        }
+    }
+    lines.push_back(border_line("\u2514", "\u2534", "\u2518", "\u2500"));
+    return ftxui::vbox(std::move(lines));
+}
+
 ftxui::Element build_node(ASTNode const& node, int depth, int qd, int mqd,
                           Links& links, int focused_link,
                           Theme const& theme) {
@@ -454,6 +565,12 @@ ftxui::Element build_node(ASTNode const& node, int depth, int qd, int mqd,
         return ftxui::separator();
     case NodeType::Image:
         return build_image(node, depth, qd, mqd, links, focused_link, theme);
+    case NodeType::Table:
+        return build_table(node, depth, qd, mqd, links, focused_link, theme);
+    case NodeType::TableRow:
+    case NodeType::TableCell:
+        // 行/单元格仅在 Table 内部渲染, 单独出现时退化为空文本。
+        return ftxui::text("");
     case NodeType::Text:
         return ftxui::text(normalize_emoji_width(node.text));
     case NodeType::SoftBreak:

@@ -23,6 +23,9 @@ enum class NodeType {
     HardBreak,
     ThematicBreak,
     Image,
+    Table,
+    TableRow,
+    TableCell,
 };
 
 struct ASTNode {
@@ -32,6 +35,9 @@ struct ASTNode {
     std::string info;       // code block language (e.g. "python")
     int level = 0;
     int list_start = 1;
+    int columns = 0;        // Table: number of columns
+    std::string alignments; // Table: per-column alignment, one of 'l'/'c'/'r' (default 'l')
+    bool is_header = false; // TableRow: true for the header row
     std::vector<ASTNode> children;
 };
 

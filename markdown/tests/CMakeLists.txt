@@ -58,6 +58,10 @@ add_executable(test_unicode test_unicode.cpp)
 target_link_libraries(test_unicode PRIVATE markdown-ui)
 add_test(NAME test_unicode COMMAND test_unicode)
 
+add_executable(test_table test_table.cpp)
+target_link_libraries(test_table PRIVATE markdown-ui)
+add_test(NAME test_table COMMAND test_table)
+
 add_executable(test_text_utils test_text_utils.cpp)
 target_link_libraries(test_text_utils PRIVATE markdown-ui)
 add_test(NAME test_text_utils COMMAND test_text_utils)
