@@ -32,10 +32,18 @@ public:
     void set_max_quote_depth(int d) { _max_quote_depth = d; }
     int max_quote_depth() const { return _max_quote_depth; }
 
+    /// 设置可用渲染宽度 (终端列数)。
+    /// 用于限制表格等宽元素的总宽度: 当表格自然宽度超过此值时,
+    /// 列宽将按比例缩减并启用单元格内自动换行。
+    /// <= 0 表示不限制 (默认行为)。
+    void set_max_width(int w) { _max_width = w; }
+    int max_width() const { return _max_width; }
+
 private:
     std::vector<LinkTarget> _link_targets;
     std::vector<FlatLinkBox> _flat_boxes;
     int _max_quote_depth = 10;
+    int _max_width = 0; // <= 0: 不限制
 };
 
 } // namespace markdown

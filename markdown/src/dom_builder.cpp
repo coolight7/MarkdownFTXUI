@@ -10,6 +10,12 @@ namespace {
 
 constexpr int kMaxDepth = 40;
 
+/// 当前构建上下文的最大可用宽度 (终端列数)。
+/// 由 DomBuilder::build() 在调用 build_node 前设置, build_table 读取。
+/// 使用 thread_local 避免修改所有中间递归函数的签名。
+/// <= 0 表示不限制。
+thread_local int tl_max_width = 0;
+
 using Links = std::vector<LinkTarget>;
 
 // Iteratively collect all text from a subtree (no recursion — safe at any
@@ -603,6 +609,7 @@ std::string cell_plain_text(ASTNode const& cell) {
 
 // 渲染 GFM 表格: 用 box-drawing 字符绘制边框, 按列最大内容宽度对齐各列,
 // 支持左/中/右对齐 (来自分隔行的 ':' 位置) 与加粗表头。
+// 当 tl_max_width > 0 且表格自然宽度超出时, 列宽按比例缩减并启用单元格内自动换行。
 ftxui::Element build_table(
     ASTNode const& node,
     int            depth,
@@ -612,7 +619,8 @@ ftxui::Element build_table(
     int            focused_link,
     Theme const&   theme
 ) {
-    // 1. 逐行构建单元格元素, 同时统计每列最大内容宽度。
+    // 1. 逐行构建单元格元素 (使用 wrapping container 以支持列宽受限时的自动换行),
+    //    同时统计每列最大内容宽度。
     std::vector<std::vector<ftxui::Element>> rows;
     std::vector<bool>                        row_is_header;
     std::vector<int>                         col_widths;
@@ -626,7 +634,8 @@ ftxui::Element build_table(
             if (cell.type != NodeType::TableCell) {
                 continue;
             }
-            auto el = build_inline_container(cell, depth, qd, mqd, links, focused_link, theme);
+            // 使用 wrapping container: 当列宽受限时, 单元格内容自动换行
+            auto el = build_wrapping_container(cell, depth, qd, mqd, links, focused_link, theme);
             int  w  = utf8_display_width(cell_plain_text(cell));
             if (ci >= col_widths.size()) {
                 col_widths.resize(ci + 1, 0);
@@ -655,7 +664,46 @@ ftxui::Element build_table(
         col_widths.push_back(1);
     }
 
-    // 3. 边框行: ┌─┬─┐ / ├─┼─┤ / └─┴─┘  (每列内容宽度 + 左右 1 空格内边距)
+    // 3. 宽度约束: 若表格自然宽度超出 tl_max_width, 按比例缩减列宽。
+    //    表格总宽 = 1 (首列 │) + ncols * (col_width + 3) (空格+内容+空格+│)
+    //             = 1 + sum(col_widths) + 3 * ncols
+    if (tl_max_width > 0) {
+        const int n_cols    = static_cast<int>(col_widths.size());
+        const int overhead  = 1 + 3 * n_cols;
+        const int available = tl_max_width - overhead;
+        int       natural_sum = 0;
+        for (int w : col_widths) {
+            natural_sum += w;
+        }
+        if (available > 0 && natural_sum > available) {
+            // 按比例缩减, 每列最小宽度 kMinColWidth (保证至少能显示少量内容)
+            constexpr int kMinColWidth = 3;
+            const int     min_total    = kMinColWidth * n_cols;
+            if (available <= min_total) {
+                // 空间不足以容纳最小列宽, 全部使用最小值
+                for (auto& w : col_widths) {
+                    w = kMinColWidth;
+                }
+            } else {
+                // 先保证每列最小宽度, 剩余空间按自然宽度中超出最小值的部分比例分配
+                const int remaining     = available - min_total;
+                int       extra_natural = 0;
+                for (int w : col_widths) {
+                    extra_natural += std::max(0, w - kMinColWidth);
+                }
+                for (auto& w : col_widths) {
+                    const int extra  = std::max(0, w - kMinColWidth);
+                    int       scaled = kMinColWidth;
+                    if (extra_natural > 0 && extra > 0) {
+                        scaled += remaining * extra / extra_natural;
+                    }
+                    w = scaled;
+                }
+            }
+        }
+    }
+
+    // 4. 边框行: ┌─┬─┐ / ├─┼─┤ / └─┴─┘  (每列内容宽度 + 左右 1 空格内边距)
     // 注: box-drawing 字符是多字节 UTF-8, 因此用 string_view 而非 char。
     auto repeat = [](std::string_view sv, size_t n) {
         std::string out;
@@ -676,7 +724,8 @@ ftxui::Element build_table(
             return ftxui::text(std::move(s)) | theme.table_border;
         };
 
-    // 4. 数据行: 单元格按列宽固定, 并按对齐方式放置内容。
+    // 5. 数据行: 单元格按列宽固定, 并按对齐方式放置内容。
+    //    单元格使用 wrapping container, 在 size(WIDTH, EQUAL, w) 约束下自动换行。
     auto render_row = [&](std::vector<ftxui::Element> const& row, bool is_header) {
         ftxui::Elements parts;
         parts.push_back(ftxui::text("\u2502") | theme.table_border);
@@ -708,7 +757,7 @@ ftxui::Element build_table(
         return ftxui::hbox(std::move(parts));
     };
 
-    // 5. 组装: 上边框 + 各行 (行间分隔线) + 下边框。
+    // 6. 组装: 上边框 + 各行 (行间分隔线) + 下边框。
     ftxui::Elements lines;
     lines.push_back(border_line("\u250C", "\u252C", "\u2510", "\u2500"));
     for (size_t r = 0; r < rows.size(); ++r) {
@@ -787,7 +836,11 @@ ftxui::Element build_node(
 
 ftxui::Element DomBuilder::build(MarkdownAST const& ast, int focused_link, Theme const& theme) {
     _link_targets.clear();
+    // 设置 thread_local 宽度约束, 供 build_table 等读取
+    const int prev_width = tl_max_width;
+    tl_max_width         = _max_width;
     auto result = build_node(ast, 0, 0, _max_quote_depth, _link_targets, focused_link, theme);
+    tl_max_width = prev_width; // 恢复 (支持嵌套构建)
 
     // Build flat index for click detection.  Stores pointers into
     // LinkTarget::boxes — reflect() fills them during layout, so the
