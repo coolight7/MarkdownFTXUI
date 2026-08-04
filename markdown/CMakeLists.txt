@@ -22,8 +22,8 @@ target_link_libraries(markdown-ui
         ftxui::component
         # 静态库链接顺序: extensions 依赖 cmark-gfm 核心符号, 必须在前,
         # 否则链接器扫描完 gfm 后无法回扫解析 extensions 的未定义符号。
-        cmark-gfm-extensions
-        cmark-gfm
+        cmark-gfm-extensions_static
+        cmark-gfm_static
 )
 
 # --- Install targets ---
