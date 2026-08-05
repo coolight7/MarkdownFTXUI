@@ -21,7 +21,7 @@ target_link_libraries(markdown-ui
         ftxui::dom
         ftxui::component
 )
-if(_WIN32)
+if(WIN32)
     target_link_libraries(markdown-ui
         PUBLIC
             # 静态库链接顺序: extensions 依赖 cmark-gfm 核心符号, 必须在前,
