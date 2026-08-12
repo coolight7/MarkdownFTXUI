@@ -4,6 +4,7 @@ add_library(markdown-ui
     src/parser_cmark.cpp
     src/dom_builder.cpp
     src/highlight.cpp
+    src/incremental.cpp
 )
 
 target_include_directories(markdown-ui PUBLIC
