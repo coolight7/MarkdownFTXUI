@@ -21,6 +21,12 @@ struct Theme {
     ftxui::Decorator blockquote;
     ftxui::Decorator table_header; // table header row cells
     ftxui::Decorator table_border; // table border lines
+    // 状态图 (```mermaid stateDiagram) 节点状态颜色: 按节点 id 后缀着色
+    // (diagramNodeColor 使用; 着色逻辑见 state_diagram.hpp)
+    ftxui::Color diagram_pending;  // *_pending
+    ftxui::Color diagram_running;  // *_in_progress
+    ftxui::Color diagram_done;     // *_completed
+    ftxui::Color diagram_failed;   // *_failed
 };
 
 inline Theme const& theme_default() {
@@ -37,6 +43,10 @@ inline Theme const& theme_default() {
         ftxui::dim,
         ftxui::bold,
         ftxui::dim,
+        ftxui::Color::GrayDark,
+        ftxui::Color::Yellow,
+        ftxui::Color::Green,
+        ftxui::Color::Red,
     };
     return t;
 }
@@ -55,6 +65,10 @@ inline Theme const& theme_high_contrast() {
         ftxui::nothing,
         ftxui::bold,
         ftxui::nothing,
+        ftxui::Color::GrayLight,
+        ftxui::Color::White,
+        ftxui::Color::White,
+        ftxui::Color::Red,
     };
     return t;
 }
@@ -74,6 +88,10 @@ inline Theme const& theme_colorful() {
         ftxui::color(ftxui::Color::Blue),
         ftxui::Decorator(ftxui::bold) | ftxui::color(ftxui::Color::Cyan),
         ftxui::color(ftxui::Color::Blue) | ftxui::dim,
+        ftxui::Color::BlueLight,
+        ftxui::Color::Yellow,
+        ftxui::Color::Green,
+        ftxui::Color::Red,
     };
     return t;
 }

@@ -1,6 +1,8 @@
 #include "markdown/dom_builder.hpp"
+#include "markdown/state_diagram.hpp"
 #include "markdown/text_utils.hpp"
 
+#include <cctype>
 #include <string_view>
 
 #include <ftxui/dom/flexbox_config.hpp>
@@ -15,6 +17,29 @@ constexpr int kMaxDepth = 40;
 /// 使用 thread_local 避免修改所有中间递归函数的签名。
 /// <= 0 表示不限制。
 thread_local int tl_max_width = 0;
+
+/// 围栏语言是否为 mermaid (大小写不敏感, 容忍首尾空白): ```mermaid 代码块
+/// 渲染为状态图, 替代代码块样式
+bool is_mermaid_fence(std::string_view info) {
+    while (!info.empty() && (info.front() == ' ' || info.front() == '\t')) {
+        info.remove_prefix(1);
+    }
+    while (!info.empty()
+           && (info.back() == ' ' || info.back() == '\t' || info.back() == '\r')) {
+        info.remove_suffix(1);
+    }
+    constexpr std::string_view kMermaid = "mermaid";
+    if (info.size() != kMermaid.size()) {
+        return false;
+    }
+    for (size_t i = 0; i < info.size(); ++i) {
+        if (std::tolower(static_cast<unsigned char>(info[i]))
+            != std::tolower(static_cast<unsigned char>(kMermaid[i]))) {
+            return false;
+        }
+    }
+    return true;
+}
 
 using Links = std::vector<LinkTarget>;
 
@@ -529,6 +554,15 @@ ftxui::Element build_blockquote(
 }
 
 ftxui::Element build_code_block(ASTNode const& node, Theme const& theme) {
+    // ```mermaid 代码块: 渲染为状态图 (mermaid stateDiagram-v2 子集), 替代代码块样式。
+    // 解析容错 (未知语法安全忽略), 空图渲染为空元素; 不着色 (Color::Default)
+    // 使未着色单元继承外层装饰 (如消息正文整体颜色), 节点按 id 状态后缀着色。
+    if (is_mermaid_fence(node.info)) {
+        auto dg = parseMermaidStateDiagram(node.text);
+        return renderMermaidStateDiagram(
+            dg, tl_max_width, ftxui::Color::Default, diagramNodeColor(theme)
+        );
+    }
     auto             sanitized_code = normalize_emoji_width(node.text);
     std::string_view code           = sanitized_code;
     if (!code.empty() && code.back() == '\n') {

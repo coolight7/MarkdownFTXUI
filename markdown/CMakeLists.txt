@@ -5,6 +5,7 @@ add_library(markdown-ui
     src/dom_builder.cpp
     src/highlight.cpp
     src/incremental.cpp
+    src/state_diagram.cpp
 )
 
 target_include_directories(markdown-ui PUBLIC

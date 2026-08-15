@@ -153,6 +153,10 @@ add_executable(test_hard_break test_hard_break.cpp)
 target_link_libraries(test_hard_break PRIVATE markdown-ui)
 add_test(NAME test_hard_break COMMAND test_hard_break)
 
+add_executable(test_state_diagram test_state_diagram.cpp)
+target_link_libraries(test_state_diagram PRIVATE markdown-ui)
+add_test(NAME test_state_diagram COMMAND test_state_diagram)
+
 add_executable(test_mouse_click test_mouse_click.cpp)
 target_link_libraries(test_mouse_click PRIVATE markdown-ui)
 add_test(NAME test_mouse_click COMMAND test_mouse_click)

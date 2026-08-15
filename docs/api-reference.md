@@ -601,6 +601,16 @@ struct Theme {
     ftxui::Decorator code_inline;   // Inline code style
     ftxui::Decorator code_block;    // Code block content style
     ftxui::Decorator blockquote;    // Block quote text style
+    ftxui::Decorator table_header;  // Table header row cells
+    ftxui::Decorator table_border;  // Table border lines
+
+    // State diagram (```mermaid stateDiagram) node status colors:
+    // used by diagramNodeColor() (state_diagram.hpp) to color nodes by id
+    // suffix: *_pending / *_in_progress / *_completed / *_failed
+    ftxui::Color diagram_pending;
+    ftxui::Color diagram_running;
+    ftxui::Color diagram_done;
+    ftxui::Color diagram_failed;
 };
 ```
 
